@@ -1,0 +1,133 @@
+<?xml version="1.0"?>
+<!-- UR5 + Robotiq 2F-85 for Gazebo Harmonic (gz_ros2_control).
+
+     The arguments mirror ur_simulation_gz/urdf/ur_gz.urdf.xacro, so this file can be passed as `description_file`
+     to ur_simulation_gz's launch files. That launch file parses the generated URDF as YAML, so comments in the
+     xacro files must not contain a colon followed by a space. The arm and the gripper are two ros2_control hardware components handled by
+     the same gz_ros2_control plugin (one controller manager). -->
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg name)">
+  <xacro:arg name="name" default="ur"/>
+  <xacro:arg name="ur_type" default="ur5"/>
+
+  <xacro:arg name="tf_prefix" default=""/>
+  <xacro:arg name="joint_limit_params" default="$(find ur_description)/config/$(arg ur_type)/joint_limits.yaml"/>
+  <xacro:arg name="kinematics_params" default="$(find ur_description)/config/$(arg ur_type)/default_kinematics.yaml"/>
+  <xacro:arg name="physical_params" default="$(find ur_description)/config/$(arg ur_type)/physical_parameters.yaml"/>
+  <xacro:arg name="visual_params" default="$(find ur_description)/config/$(arg ur_type)/visual_parameters.yaml"/>
+  <xacro:arg name="transmission_hw_interface" default=""/>
+  <xacro:arg name="safety_limits" default="false"/>
+  <xacro:arg name="safety_pos_margin" default="0.15"/>
+  <xacro:arg name="safety_k_position" default="20"/>
+
+  <xacro:arg name="simulation_controllers" default=""/>
+  <xacro:arg name="ros_namespace" default=""/>
+  <!-- Gazebo model (with a link named `link`) that the grasp attachment fixes to the gripper -->
+  <xacro:arg name="grasp_object" default="cube"/>
+
+  <xacro:include filename="$(find ur_description)/urdf/ur_macro.xacro"/>
+  <xacro:include filename="$(find ur_simulation_gz)/urdf/ur_gz.ros2_control.xacro"/>
+  <xacro:include filename="$(find robotiq_description)/urdf/robotiq_2f_85_macro.urdf.xacro"/>
+  <xacro:include filename="$(find ur5_robotiq_description)/urdf/robotiq_2f_85_gz.ros2_control.xacro"/>
+
+  <xacro:property name="prefix" value="$(arg tf_prefix)"/>
+
+  <link name="world"/>
+
+  <!-- Floor as a robot link so that MoveIt plans around it -->
+  <link name="ground_plane">
+    <visual>
+      <geometry>
+        <box size="5 5 0"/>
+      </geometry>
+      <material name="ground_white">
+        <color rgba="1 1 1 0.5"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="5 5 0"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="ground_plane_joint" type="fixed">
+    <origin xyz="0 0 -0.01" rpy="0 0 0"/>
+    <parent link="world"/>
+    <child link="ground_plane"/>
+  </joint>
+
+  <!-- arm -->
+  <xacro:ur_robot
+    name="$(arg name)"
+    tf_prefix="${prefix}"
+    parent="world"
+    joint_limits_parameters_file="$(arg joint_limit_params)"
+    kinematics_parameters_file="$(arg kinematics_params)"
+    physical_parameters_file="$(arg physical_params)"
+    visual_parameters_file="$(arg visual_params)"
+    safety_limits="$(arg safety_limits)"
+    safety_pos_margin="$(arg safety_pos_margin)"
+    safety_k_position="$(arg safety_k_position)"
+    force_abs_paths="true">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:ur_robot>
+
+  <xacro:ur_ros2_control
+    name="$(arg name)"
+    tf_prefix="${prefix}"
+    transmission_hw_interface="$(arg transmission_hw_interface)"/>
+
+  <!-- Gripper. Links and meshes from robotiq_description, ros2_control from this package (the released Jazzy
+       robotiq_description still targets ign_ros2_control) -->
+  <xacro:robotiq_gripper name="robotiq_gripper" prefix="${prefix}" parent="${prefix}tool0" include_ros2_control="false">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </xacro:robotiq_gripper>
+
+  <xacro:robotiq_2f_85_gz_ros2_control name="robotiq_gripper" prefix="${prefix}"/>
+
+  <!-- Grasp TCP between the finger pads, on the gripper's z axis. MoveIt plans the `manipulator` group to this frame. -->
+  <link name="${prefix}grasp_link"/>
+  <joint name="${prefix}grasp_joint" type="fixed">
+    <parent link="${prefix}robotiq_85_base_link"/>
+    <child link="${prefix}grasp_link"/>
+    <origin xyz="0 0 0.13" rpy="0 0 0"/>
+  </joint>
+
+  <!-- Finger pads with high friction so that a closed gripper holds objects instead of letting them slip -->
+  <xacro:macro name="finger_surface" params="link">
+    <gazebo reference="${link}">
+      <mu1>1.5</mu1>
+      <mu2>1.5</mu2>
+      <kp>1e6</kp>
+      <kd>100.0</kd>
+      <minDepth>0.001</minDepth>
+    </gazebo>
+  </xacro:macro>
+  <xacro:finger_surface link="${prefix}robotiq_85_left_finger_tip_link"/>
+  <xacro:finger_surface link="${prefix}robotiq_85_right_finger_tip_link"/>
+
+  <!-- Grasp attachment. Friction alone does not hold objects reliably in Gazebo, so once the fingers are closed the
+       object is fixed to the wrist (the gripper base is merged into wrist_3_link when the URDF becomes SDF) at its
+       current relative pose. The system starts attached, ur5_robotiq_bringup/sim.launch.py detaches it at start-up.
+       Commands are std_msgs/Empty on /ur5/grasp/attach and /ur5/grasp/detach (bridged), the state is on
+       /ur5/grasp/state. -->
+  <gazebo>
+    <plugin filename="gz-sim-detachable-joint-system" name="gz::sim::systems::DetachableJoint">
+      <parent_link>${prefix}wrist_3_link</parent_link>
+      <child_model>$(arg grasp_object)</child_model>
+      <child_link>link</child_link>
+      <attach_topic>/ur5/grasp/attach</attach_topic>
+      <detach_topic>/ur5/grasp/detach</detach_topic>
+      <output_topic>/ur5/grasp/state</output_topic>
+      <suppress_child_warning>true</suppress_child_warning>
+    </plugin>
+  </gazebo>
+
+  <gazebo>
+    <plugin filename="gz_ros2_control-system" name="gz_ros2_control::GazeboSimROS2ControlPlugin">
+      <parameters>$(arg simulation_controllers)</parameters>
+      <ros>
+        <namespace>$(arg ros_namespace)</namespace>
+      </ros>
+    </plugin>
+  </gazebo>
+</robot>

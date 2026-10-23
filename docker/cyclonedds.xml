@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Cyclone DDS settings of the image; CYCLONEDDS_URI points here. Gazebo + ros2_control + MoveIt + RViz start many
+     processes, so the participant index limit is raised above Cyclone's default of 32. -->
+<CycloneDDS xmlns="https://cdds.io/config">
+  <Domain id="any">
+    <Discovery>
+      <MaxAutoParticipantIndex>120</MaxAutoParticipantIndex>
+    </Discovery>
+  </Domain>
+</CycloneDDS>

@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<!-- ros2_control of the Robotiq 2F-85 in Gazebo Harmonic.
+
+     Only robotiq_85_left_knuckle_joint is commanded. The other five joints carry a <mimic> tag in the URDF; listing
+     them here with state interfaces only makes gz_ros2_control drive them after the commanded joint. -->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+  <xacro:macro name="robotiq_2f_85_gz_ros2_control" params="name prefix initial_position:=0.0">
+    <ros2_control name="${name}" type="system">
+      <hardware>
+        <plugin>gz_ros2_control/GazeboSimSystem</plugin>
+      </hardware>
+      <joint name="${prefix}robotiq_85_left_knuckle_joint">
+        <command_interface name="position"/>
+        <state_interface name="position">
+          <param name="initial_value">${initial_position}</param>
+        </state_interface>
+        <state_interface name="velocity"/>
+      </joint>
+      <xacro:macro name="mimic_joint" params="joint">
+        <joint name="${prefix}${joint}">
+          <state_interface name="position"/>
+          <state_interface name="velocity"/>
+        </joint>
+      </xacro:macro>
+      <xacro:mimic_joint joint="robotiq_85_right_knuckle_joint"/>
+      <xacro:mimic_joint joint="robotiq_85_left_inner_knuckle_joint"/>
+      <xacro:mimic_joint joint="robotiq_85_right_inner_knuckle_joint"/>
+      <xacro:mimic_joint joint="robotiq_85_left_finger_tip_joint"/>
+      <xacro:mimic_joint joint="robotiq_85_right_finger_tip_joint"/>
+    </ros2_control>
+  </xacro:macro>
+</robot>

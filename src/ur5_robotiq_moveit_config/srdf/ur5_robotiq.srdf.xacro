@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Semantic description of the UR5 + Robotiq 2F-85. Group and state names follow the ROS 1 project
+     (icl_ur5_setup_moveit_config): `manipulator`, `gripper`, `home`, `up`, `open`, `closed`. -->
+<robot xmlns:xacro="http://wiki.ros.org/xacro" name="$(arg name)">
+  <xacro:arg name="name" default="ur"/>
+  <xacro:arg name="prefix" default=""/>
+  <xacro:property name="p" value="$(arg prefix)"/>
+
+  <group name="manipulator">
+    <chain base_link="${p}base_link" tip_link="${p}grasp_link"/>
+  </group>
+  <group name="gripper">
+    <joint name="${p}robotiq_85_left_knuckle_joint"/>
+  </group>
+
+  <group_state name="home" group="manipulator">
+    <joint name="${p}shoulder_pan_joint" value="0"/>
+    <joint name="${p}shoulder_lift_joint" value="-1.57"/>
+    <joint name="${p}elbow_joint" value="1.57"/>
+    <joint name="${p}wrist_1_joint" value="-1.57"/>
+    <joint name="${p}wrist_2_joint" value="-1.57"/>
+    <joint name="${p}wrist_3_joint" value="0"/>
+  </group_state>
+  <group_state name="up" group="manipulator">
+    <joint name="${p}shoulder_pan_joint" value="0"/>
+    <joint name="${p}shoulder_lift_joint" value="-1.5707"/>
+    <joint name="${p}elbow_joint" value="0"/>
+    <joint name="${p}wrist_1_joint" value="-1.5707"/>
+    <joint name="${p}wrist_2_joint" value="0"/>
+    <joint name="${p}wrist_3_joint" value="0"/>
+  </group_state>
+  <group_state name="open" group="gripper">
+    <joint name="${p}robotiq_85_left_knuckle_joint" value="0.0"/>
+  </group_state>
+  <group_state name="closed" group="gripper">
+    <joint name="${p}robotiq_85_left_knuckle_joint" value="0.79"/>
+  </group_state>
+
+  <end_effector name="robotiq_gripper" parent_link="${p}grasp_link" group="gripper" parent_group="manipulator"/>
+
+  <!-- arm (from ur_moveit_config) -->
+  <disable_collisions link1="${p}base_link" link2="${p}base_link_inertia" reason="Adjacent"/>
+  <disable_collisions link1="${p}base_link_inertia" link2="${p}shoulder_link" reason="Adjacent"/>
+  <disable_collisions link1="${p}tool0" link2="${p}wrist_1_link" reason="Never"/>
+  <disable_collisions link1="${p}tool0" link2="${p}wrist_2_link" reason="Never"/>
+  <disable_collisions link1="${p}tool0" link2="${p}wrist_3_link" reason="Adjacent"/>
+  <disable_collisions link1="${p}forearm_link" link2="${p}upper_arm_link" reason="Adjacent"/>
+  <disable_collisions link1="${p}forearm_link" link2="${p}wrist_1_link" reason="Adjacent"/>
+  <disable_collisions link1="${p}shoulder_link" link2="${p}upper_arm_link" reason="Adjacent"/>
+  <disable_collisions link1="${p}wrist_1_link" link2="${p}wrist_2_link" reason="Adjacent"/>
+  <disable_collisions link1="${p}wrist_1_link" link2="${p}wrist_3_link" reason="Never"/>
+  <disable_collisions link1="${p}wrist_2_link" link2="${p}wrist_3_link" reason="Adjacent"/>
+
+  <!-- floor -->
+  <disable_collisions link1="ground_plane" link2="${p}base_link_inertia" reason="Adjacent"/>
+  <disable_collisions link1="ground_plane" link2="${p}shoulder_link" reason="Never"/>
+
+  <!-- gripper: its links touch each other by design (linkage), and its base touches the wrist -->
+  <xacro:property name="gripper_links" value="${[
+    'robotiq_85_base_link',
+    'robotiq_85_left_knuckle_link', 'robotiq_85_right_knuckle_link',
+    'robotiq_85_left_finger_link', 'robotiq_85_right_finger_link',
+    'robotiq_85_left_inner_knuckle_link', 'robotiq_85_right_inner_knuckle_link',
+    'robotiq_85_left_finger_tip_link', 'robotiq_85_right_finger_tip_link']}"/>
+  <xacro:macro name="disable_gripper_pairs" params="links">
+    <xacro:if value="${len(links) > 1}">
+      <xacro:macro name="disable_with_first" params="rest">
+        <xacro:if value="${len(rest) > 0}">
+          <disable_collisions link1="${p}${links[0]}" link2="${p}${rest[0]}" reason="Adjacent"/>
+          <xacro:disable_with_first rest="${rest[1:]}"/>
+        </xacro:if>
+      </xacro:macro>
+      <xacro:disable_with_first rest="${links[1:]}"/>
+      <xacro:disable_gripper_pairs links="${links[1:]}"/>
+    </xacro:if>
+  </xacro:macro>
+  <xacro:disable_gripper_pairs links="${gripper_links}"/>
+  <xacro:macro name="disable_with_wrist" params="links">
+    <xacro:if value="${len(links) > 0}">
+      <disable_collisions link1="${p}wrist_3_link" link2="${p}${links[0]}" reason="Never"/>
+      <xacro:disable_with_wrist links="${links[1:]}"/>
+    </xacro:if>
+  </xacro:macro>
+  <xacro:disable_with_wrist links="${gripper_links}"/>
+  <disable_collisions link1="${p}wrist_2_link" link2="${p}robotiq_85_base_link" reason="Never"/>
+  <disable_collisions link1="${p}wrist_1_link" link2="${p}robotiq_85_base_link" reason="Never"/>
+</robot>
