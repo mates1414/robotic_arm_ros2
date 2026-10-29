@@ -1,0 +1,25 @@
+# Parameters of pick_place_demo for the UR5 + Robotiq 2F-85 (ur5_robotiq_moveit_config).
+# For another arm copy this file and pass it as config_file:=<path> to pick_place_demo.launch.py.
+# Doubles need a decimal point (0.0, not 0), otherwise they are read as integers and rejected.
+pick_place_demo:
+  ros__parameters:
+    # MoveIt names, from the SRDF of the MoveIt config
+    arm_group: manipulator
+    gripper_group: gripper
+    arm_home_state: home
+    gripper_open_state: open
+    # joint commanded to grasp_position when closing on the object
+    gripper_joint: robotiq_85_left_knuckle_joint
+
+    # Gazebo DetachableJoint commands (ur5_robotiq_description)
+    attach_topic: /ur5/grasp/attach
+    detach_topic: /ur5/grasp/detach
+
+    # task, in the planning frame
+    pick_x: 0.5
+    pick_y: 0.0
+    place_x: 0.4
+    place_y: -0.3
+    grasp_z: 0.03       # grasp_link height at the grasp (cube center 0.025)
+    approach_z: 0.20    # height of the approach / retreat poses
+    grasp_position: 0.35  # 2F-85 knuckle angle, squeezes the 5 cm cube slightly

@@ -17,4 +17,9 @@ ament_target_dependencies(pick_place_demo geometry_msgs moveit_ros_planning_inte
 
 install(TARGETS pick_place_demo DESTINATION lib/${PROJECT_NAME})
 
+install(
+  DIRECTORY config launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
 ament_package()

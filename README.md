@@ -45,11 +45,15 @@ colcon build --symlink-install
 source install/setup.bash
 ros2 launch ur5_robotiq_bringup sim_moveit.launch.py          # Gazebo + MoveIt + RViz
 # second shell (./docker/run.sh):
-ros2 run ur5_robotiq_manipulation pick_place_demo --ros-args -p use_sim_time:=true
+ros2 launch ur5_robotiq_manipulation pick_place_demo.launch.py
 ```
 
-The demo moves the cube from (0.5, 0) to (0.4, -0.3). Its poses are parameters: `pick_x`, `pick_y`, `place_x`,
-`place_y`, `grasp_z`, `approach_z`, `grasp_position` (knuckle angle at the grasp).
+The demo moves the cube from (0.5, 0) to (0.4, -0.3). Its parameters are in
+`ur5_robotiq_manipulation/config/pick_place_demo.yaml`: the robot-specific names (`arm_group`, `gripper_group`,
+`arm_home_state`, `gripper_open_state`, `gripper_joint`, `attach_topic`, `detach_topic`) and the poses (`pick_x`,
+`pick_y`, `place_x`, `place_y`, `grasp_z`, `approach_z`, `grasp_position`). For another arm copy the file and pass
+`config_file:=<path>`. Without the launch file the node falls back to the UR5 + 2F-85 values
+(`ros2 run ur5_robotiq_manipulation pick_place_demo --ros-args -p use_sim_time:=true`).
 
 Other entry points:
 
